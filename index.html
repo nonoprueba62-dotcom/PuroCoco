@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, height=device-height, viewport-fit=cover">
+    <title>Puro Coco - Sistema de Pedidos</title>
+    <style>
+        /* --- ESTILOS CSS RESPONSIVOS Y CORREGIDOS --- */
+
+        /* Asegura que el cálculo de tamaño incluya padding y bordes */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        /* Fuentes y estilos generales */
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            /* Previene la barra de desplazamiento a nivel de página */
+            overflow: hidden;
+            /* Asegura que el body ocupe toda la altura de la ventana */
+            height: 100%;
+        }
+
+        /* Contenedor principal del chat */
+        .chat-container {
+            /* Por defecto (en móviles), ocupa el 100% de la pantalla */
+            width: 100vw;
+            /* --- CLAVE: Usamos 100dvh para ajustarse al teclado en móviles --- */
+            /* Fallback para navegadores antiguos: 100vh */
+            height: 100vh;
+            height: 100dvh;
+            background-color: #ffffff;
+            /* Sin bordes ni sombras para un look de app nativa en móviles */
+            border-radius: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Cabecera del chat con estilo moderno */
+        .chat-header {
+            flex-shrink: 0; /* Evita que la cabecera se encoja */
+            background-color: #ffffff;
+            color: #1c1e21;
+            padding: 18px 20px;
+            font-size: 1.2em;
+            font-weight: 600;
+            text-align: center;
+            border-bottom: 1px solid #e9ebee;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Área donde se muestran los mensajes */
+        .chat-messages {
+            flex-grow: 1; /* Ocupa el espacio restante */
+            padding: 20px;
+            overflow-y: auto; /* Barra de desplazamiento solo si es necesario */
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            /* Añade un pequeño padding para que el último mensaje no quede pegado al borde */
+            padding-bottom: 20px;
+        }
+
+        /* Estilo para cada burbuja de mensaje con aspecto de tarjeta */
+        .message {
+            padding: 12px 16px;
+            border-radius: 20px;
+            max-width: 75%;
+            word-wrap: break-word;
+            line-height: 1.5;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Mensaje del bot (alineado a la izquierda) */
+        .bot-message {
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+
+        /* Mensaje del usuario (alineado a la derecha, con nuevo color) */
+        .user-message {
+            background-color: #0084ff;
+            color: #ffffff;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        /* Área de entrada de texto y botones */
+        .chat-input-area {
+            flex-shrink: 0; /* Evita que el área de entrada se encoja */
+            display: flex;
+            padding: 12px 15px;
+            border-top: 1px solid #e9ebee;
+            background-color: #ffffff;
+            gap: 10px; /* Espacio entre los botones */
+        }
+
+        #message-input {
+            flex-grow: 1;
+            border: 1px solid #dddfe2;
+            border-radius: 20px;
+            padding: 10px 15px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        #message-input:focus {
+            border-color: #0084ff;
+        }
+
+        /* Estilo base para los botones circulares */
+        .chat-button {
+            background-color: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+            font-size: 1.2em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .chat-button:hover {
+            background-color: #0077e6;
+        }
+
+        .chat-button:active {
+            transform: scale(0.95);
+        }
+        
+        /* --- ESTILO PARA EL ESTADO DESHABILITADO --- */
+        #message-input:disabled {
+            background-color: #f0f2f5;
+            cursor: not-allowed;
+        }
+        .chat-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* --- ESTILO PARA EL BOTÓN DE VOZ --- */
+        #voice-button.recording {
+            background-color: #ff3b30; /* Rojo para indicar grabación */
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 59, 48, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+            }
+        }
+
+
+        /* Animación de "escribiendo..." */
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background-color: #f0f2f5;
+            padding: 12px 16px;
+            border-radius: 20px;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #8a8d91;
+            border-radius: 50%;
+            display: inline-block;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-of-type(2) { animation-delay: -0.2s; }
+        .typing-indicator span:nth-of-type(3) { animation-delay: -0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        /* --- MEDIA QUERY PARA PANTALLAS GRANDES (TABLETS Y ESCRITORIOS) --- */
+        @media (min-width: 768px) {
+            html, body {
+                /* En pantallas grandes, volvemos a centrar el chat */
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .chat-container {
+                /* Aplicamos un ancho máximo y una altura relativa para mejor legibilidad */
+                width: 100%;
+                max-width: 500px;
+                /* Volvemos a usar 85vh ya que no hay teclado virtual que afecte el diseño */
+                height: 85vh;
+                /* Restauramos los bordes y sombras para el diseño de escritorio */
+                border-radius: 12px;
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            Bienvenidos al sistema de pedidos de Puro Coco
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="typing-indicator" id="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="message-input" placeholder="Escribe o habla tu respuesta..." autocomplete="off">
+            <!-- NUEVO: Botón de voz -->
+            <button id="voice-button" class="chat-button">🎤</button>
+            <button id="send-button" class="chat-button">➤</button>
+        </div>
+    </div>
+
+    <!-- Librería de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+    <script>
+        // --- LÓGICA JAVASCRIPT CON TOGGLE DE MICRÓFONO ---
+
+        // DATOS DE SUPABASE
+        const SUPABASE_URL = 'https://ltyklvwksvbnadvvbwmk.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0eWtsdndrc3ZibmFkdnZid21rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwOTAyNjEsImV4cCI6MjA3ODY2NjI2MX0.2faUVdGS2RWi0gyjpBc7xTYSQqhFVzxiY3zw-DJx5V0';
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Referencias a los elementos del DOM
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const voiceButton = document.getElementById('voice-button');
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        // --- NUEVO: Variables para manejar el estado del micrófono ---
+        let isListening = false;
+        let activeRecognition = null;
+
+        // Estado del chatbot
+        let pasoActual = 0;
+        const pedido = {
+            nombre: '',
+            direccion: '',
+            cantidad_jamaica: 0,
+            cantidad_aguas: 0,
+            devolucion_jamaica: 0,
+            devolucion_aguas: 0
+        };
+
+        const preguntas = [
+            'Hola, ¿Me podrías brindar tu nombre o empresa?',
+            '¿Me puedes brindar tu dirección?',
+            'Indique la cantidad de jamaica o aguas de coco que desea.',
+            'Indique las cantidades para devolución. Puede devolver jamaica, aguas de coco, o ambos. (Ej: "una jamaica", "dos aguas", "una jamaica y una agua"). Si no hay devoluciones, escriba "ninguna".'
+        ];
+
+        // --- FUNCIÓN PARA SINTETIZAR VOZ ---
+        function hablarTexto(texto) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(texto);
+                utterance.lang = 'es-ES';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                const voices = window.speechSynthesis.getVoices();
+                const spanishVoice = voices.find(voice => voice.lang.startsWith('es'));
+                if (spanishVoice) {
+                    utterance.voice = spanishVoice;
+                }
+                window.speechSynthesis.speak(utterance);
+            } else {
+                console.warn('La API de síntesis de voz no es compatible con este navegador.');
+            }
+        }
+
+        // --- FUNCIÓN PARA PARSEAR DEVOLUCIONES (ACTUALIZADA) ---
+        function parsearDetallesDevolucion(texto) {
+            const textoLower = texto.toLowerCase();
+            if (textoLower.includes('ninguna') || textoLower.includes('no')) {
+                return { jamaica: 0, aguas: 0 };
+            }
+
+            const numeroMap = {
+                'cero': 0, 'uno': 1, 'una': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5,
+                'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10, 'once': 11,
+                'doce': 12, 'trece': 13, 'catorce': 14, 'quince': 15, 'veinte': 20
+            };
+
+            let jamaica = 0;
+            let aguas = 0;
+            const regex = /(\d+|cero|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte)\s+(jamaica|aguas?)/g;
+            let match;
+
+            while ((match = regex.exec(textoLower)) !== null) {
+                const cantidadStr = match[1];
+                const producto = match[2];
+                const cantidad = numeroMap[cantidadStr] || parseInt(cantidadStr, 10);
+
+                if (producto.startsWith('jamaica')) {
+                    jamaica += cantidad;
+                } else if (producto.startsWith('agua')) {
+                    aguas += cantidad;
+                }
+            }
+
+            return { jamaica, aguas };
+        }
+
+        // --- FUNCIÓN PARA PARSEAR EL PEDIDO (ACTUALIZADA) ---
+        function parsearDetallesPedido(texto) {
+            const numeroMap = {
+                'cero': 0, 'uno': 1, 'una': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5,
+                'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10, 'once': 11,
+                'doce': 12, 'trece': 13, 'catorce': 14, 'quince': 15, 'veinte': 20
+            };
+
+            let jamaica = 0;
+            let aguas = 0;
+            const textoLower = texto.toLowerCase();
+            const regex = /(\d+|cero|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte)\s+(jamaica|aguas?)/g;
+            let match;
+
+            while ((match = regex.exec(textoLower)) !== null) {
+                const cantidadStr = match[1];
+                const producto = match[2];
+                const cantidad = numeroMap[cantidadStr] || parseInt(cantidadStr, 10);
+
+                if (producto.startsWith('jamaica')) {
+                    jamaica += cantidad;
+                } else if (producto.startsWith('agua')) {
+                    aguas += cantidad;
+                }
+            }
+
+            return { jamaica, aguas };
+        }
+
+        // --- CAMBIO: Función para mostrar un mensaje y hablarlo si es del bot ---
+        function mostrarMensaje(texto, esBot) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(esBot ? 'bot-message' : 'user-message');
+            messageElement.textContent = texto;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            if (esBot) {
+                hablarTexto(texto);
+            }
+        }
+
+        // Función para mostrar/ocultar el indicador de "escribiendo..."
+        function mostrarIndicadorEscritura() {
+            typingIndicator.style.display = 'flex';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        function ocultarIndicadorEscritura() {
+            typingIndicator.style.display = 'none';
+        }
+
+        // --- ACTUALIZADA: Función para guardar en Supabase con nuevas columnas ---
+        async function guardarPedidoEnSupabase(pedidoAGuardar) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('pedidos')
+                    .insert([
+                        { 
+                            nombre: pedidoAGuardar.nombre, 
+                            direccion: pedidoAGuardar.direccion, 
+                            cantidad_jamaica: pedidoAGuardar.cantidad_jamaica,
+                            cantidad_aguas: pedidoAGuardar.cantidad_aguas,
+                            devolucion_jamaica: pedidoAGuardar.devolucion_jamaica,
+                            devolucion_aguas: pedidoAGuardar.devolucion_aguas
+                        }
+                    ]);
+
+                if (error) {
+                    console.error('Error de Supabase:', error);
+                    mostrarMensaje('Ocurrió un error al guardar tu pedido. Por favor, inténtalo de nuevo.', true);
+                    return;
+                }
+
+                console.log('Pedido guardado:', data);
+                mostrarMensaje('¡Pedido guardado correctamente en nuestro sistema!', true);
+
+            } catch (err) {
+                console.error('Error inesperado:', err);
+                mostrarMensaje('Ocurrió un error inesperado. Contacta con soporte.', true);
+            }
+        }
+
+        // --- ACTUALIZADA: Función principal con el nuevo flujo ---
+        function procesarEntradaUsuario() {
+            const textoUsuario = messageInput.value.trim();
+            if (textoUsuario === '') return;
+
+            mostrarMensaje(textoUsuario, false);
+            messageInput.value = '';
+            mostrarIndicadorEscritura();
+
+            setTimeout(() => {
+                ocultarIndicadorEscritura();
+
+                if (pasoActual < preguntas.length) {
+                    switch (pasoActual) {
+                        case 0: 
+                            pedido.nombre = textoUsuario;
+                            break;
+                        case 1: 
+                            pedido.direccion = textoUsuario;
+                            break;
+                        case 2: 
+                            const detalles = parsearDetallesPedido(textoUsuario);
+                            if (detalles.jamaica === 0 && detalles.aguas === 0) {
+                                mostrarMensaje('No pude entender las cantidades. Por favor, indícalas, ej: "dos jamaica y una agua".', true);
+                                return;
+                            }
+                            pedido.cantidad_jamaica = detalles.jamaica;
+                            pedido.cantidad_aguas = detalles.aguas;
+                            break;
+                        case 3: 
+                            const devolucion = parsearDetallesDevolucion(textoUsuario);
+                            pedido.devolucion_jamaica = devolucion.jamaica;
+                            pedido.devolucion_aguas = devolucion.aguas;
+                            break;
+                    }
+                    pasoActual++;
+
+                    if (pasoActual < preguntas.length) {
+                        hacerPreguntaSiguiente();
+                    } else {
+                        mostrarResumenYConfirmar();
+                    }
+                } else {
+                    const confirmacion = textoUsuario.toLowerCase();
+                    if (confirmacion === 'sí' || confirmacion === 'si' || confirmacion === 's') {
+                        mostrarMensaje(`¡Gracias, ${pedido.nombre}! Tu pedido ha sido confirmado.`, true);
+                        guardarPedidoEnSupabase(pedido);
+                        
+                        setTimeout(() => {
+                            reiniciarChat();
+                        }, 4000);
+
+                    } else if (confirmacion === 'no' || confirmacion === 'n') {
+                        mostrarMensaje('Entendido. Tu pedido ha sido cancelado. Iniciando nueva conversación...', true);
+                        reiniciarChat();
+                    } else {
+                        mostrarMensaje('No entendí eso. Por favor, responde "sí" para confirmar o "no" para cancelar.', true);
+                    }
+                }
+            }, 800);
+        }
+
+        // Funciones auxiliares
+        function hacerPreguntaSiguiente() {
+            if (pasoActual < preguntas.length) {
+                mostrarMensaje(preguntas[pasoActual], true);
+            }
+        }
+
+        // --- ACTUALIZADA: Función de resumen ---
+        function mostrarResumenYConfirmar() {
+            let textoDevolucion = [];
+            if (pedido.devolucion_jamaica > 0) {
+                textoDevolucion.push(`${pedido.devolucion_jamaica} jamaica(s)`);
+            }
+            if (pedido.devolucion_aguas > 0) {
+                textoDevolucion.push(`${pedido.devolucion_aguas} agua(s) de coco`);
+            }
+            const devolucionFinal = textoDevolucion.length > 0 ? textoDevolucion.join(', ') : 'Ninguna';
+
+            const resumen = `Resumen de tu pedido:\n\n- Nombre: ${pedido.nombre}\n- Dirección: ${pedido.direccion}\n- Jamaica: ${pedido.cantidad_jamaica}\n- Aguas de Coco: ${pedido.cantidad_aguas}\n- Devolución: ${devolucionFinal}\n\n¿Es correcto? (responde "sí" o "no")`;
+            mostrarMensaje(resumen, true);
+        }
+
+        // --- ACTUALIZADA: Función de reinicio ---
+        function reiniciarChat() {
+            chatMessages.innerHTML = '';
+            pasoActual = 0;
+            pedido.nombre = '';
+            pedido.direccion = '';
+            pedido.cantidad_jamaica = 0;
+            pedido.cantidad_aguas = 0;
+            pedido.devolucion_jamaica = 0;
+            pedido.devolucion_aguas = 0;
+
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            voiceButton.disabled = false;
+            messageInput.placeholder = "Escribe o habla tu respuesta...";
+
+            hacerPreguntaSiguiente();
+        }
+
+        // Event Listeners
+        sendButton.addEventListener('click', procesarEntradaUsuario);
+        
+        // --- CAMBIO CLAVE: Event Listener con lógica de TOGGLE ---
+        voiceButton.addEventListener('click', () => {
+            if (!SpeechRecognition) {
+                mostrarMensaje('Tu navegador no soporta el reconocimiento de voz. Usa el campo de texto.', true);
+                return;
+            }
+
+            // Detener la voz del bot inmediatamente al interactuar con el micrófono
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+
+            if (isListening) {
+                // Si está escuchando, detener la grabación
+                activeRecognition.stop();
+            } else {
+                // Si no está escuchando, iniciar la grabación
+                const recognition = new SpeechRecognition();
+                activeRecognition = recognition; // Guardar la instancia activa
+                
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'es-ES';
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    voiceButton.classList.add('recording');
+                    messageInput.placeholder = "Escuchando...";
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    messageInput.value = transcript;
+                    // Detener el reconocimiento para que se dispare onend y limpie la UI
+                    recognition.stop();
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Error de reconocimiento de voz:', event.error);
+                    let mensajeError = 'No pude entenderte. Por favor, inténtalo de nuevo.';
+                    if (event.error === 'not-allowed') {
+                        mensajeError = 'Permiso de micrófono denegado. Por favor, habilítalo en la configuración de tu navegador.';
+                    }
+                    mostrarMensaje(mensajeError, true);
+                    // Asegurarse de que el estado se resetee
+                    recognition.stop(); // Forzar la limpieza
+                };
+                
+                recognition.onend = () => {
+                    // Limpieza final del estado
+                    isListening = false;
+                    activeRecognition = null;
+                    voiceButton.classList.remove('recording');
+                    messageInput.placeholder = "Escribe o habla tu respuesta...";
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                };
+
+                // Iniciar el reconocimiento con manejo de errores
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Error al iniciar el reconocimiento de voz:', error);
+                    // Resetear UI si falla el inicio
+                    isListening = false;
+                    activeRecognition = null;
+                    messageInput.placeholder = "Escribe o habla tu respuesta...";
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    voiceButton.classList.remove('recording');
+                }
+            }
+        });
+
+        messageInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                procesarEntradaUsuario();
+            }
+        });
+
+        messageInput.addEventListener('click', () => {
+            messageInput.focus();
+        });
+
+        // Iniciar la conversación
+        window.addEventListener('load', () => {
+            hacerPreguntaSiguiente();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+            }
+        });
+    </script>
+</body>
+</html>
